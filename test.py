@@ -26,7 +26,8 @@ from googleapiclient.discovery import build
 from google.cloud import storage
 from PIL import Image
 from seleniumwire import webdriver 
-
+import threading
+import queue
 project_init=False
 if not os.path.isfile('config.csv'):
     CONFIG_DF=pd.DataFrame(columns=["SUMRUSH_EMAIL","PROXY","GOOGLE_CUSTOM_SEARCH_ENGINE_ID","GOOGLE_CUSTOM_SEARCH_API_KEY","GCS_S3_BUCKET_NAME","GCS_CREDENTIALS_PATH"])    
@@ -41,11 +42,8 @@ if project_init:
 with open('config/global_config.json', 'r') as file:
     CONFIG_DATA = json.load(file)
 
-# GOOGLE_CUSTOM_SEARCH_API_KEY=CONFIG_DATA['GOOGLE_CUSTOM_SEARCH_API_KEY']
-# GOOGLE_CUSTOM_SEARCH_ENGINE_ID=CONFIG_DATA['GOOGLE_CUSTOM_SEARCH_ENGINE_ID']
 
-# GCS_S3_BUCKET_NAME=CONFIG_DATA['GCS_S3_BUCKET_NAME']
-# GCS_CREDENTIALS_PATH=Path.cwd()+'/'+CONFIG_DATA['GCS_CREDENTIALS_PATH']
+
 
 def build_selenium_browser(cookie_file,cookie):
     rt={'status':False, 'browser':None,'info':None}
@@ -79,9 +77,7 @@ def build_selenium_browser(cookie_file,cookie):
                 }
             }
             driver = webdriver.Chrome(seleniumwire_options=proxy_options,options=options)
-            
-            driver.implicitly_wait(20)
-            driver.set_page_load_timeout(20)
+            driver.set_page_load_timeout(60)
             # configure proxy driver
             try:
                 driver.get('https://ifconfig.me/ip')
@@ -100,8 +96,7 @@ def build_selenium_browser(cookie_file,cookie):
 
     else:
         driver = webdriver.Chrome(options=options)  # Optional argument, if not specified will search path.
-        driver.implicitly_wait(20)
-        driver.set_page_load_timeout(20)
+        driver.set_page_load_timeout(60)
         # configure driver
         try:
             driver.get('https://ifconfig.me/ip')
@@ -124,18 +119,33 @@ def build_selenium_browser(cookie_file,cookie):
             for cookie__ in cookies__:
                 driver.add_cookie(cookie__)
             driver.refresh()
-        try:
-            driver.find_element(By.CSS_SELECTOR, 'button[data-test="header-menu__user"]')
-            rt['status']=True
-            rt['browser']=driver            
-            print(cookie,' Logged in successfully.')
-            rt['browser']=driver
-            return rt
-            pass
-        except:
-            print(cookie,'Bad Credential. Try Again ! ')
-            rt['info']='Bad Credential. Try Again ! '+cookie
-            return rt
+        c_=0
+        while True:
+            if c_>0:
+                driver.execute_script("window.stop();")
+            c_+=1
+            
+            if c_>5:
+                rt['info']='Bad Credential. Try Again ! '+cookie
+                return rt
+                break
+            try:
+                element = WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'button[data-test="header-menu__user"]'))
+                )
+                rt['status']=True
+                rt['browser']=driver            
+                print(cookie,' Logged in successfully.')
+                rt['browser']={'driver':driver,'config':account_config}
+                return rt
+                break
+                pass
+            except TimeoutException as e:
+                continue
+            except Exception as e:
+                print(cookie,'Bad Credential. Try Again ! ',e)
+                rt['info']='Bad Credential. Try Again ! '+cookie
+                return rt
             
                 
     except FileNotFoundError:
@@ -147,5 +157,30 @@ def build_selenium_browser(cookie_file,cookie):
         rt['info']='An error occurred: {e}" ! '+cookie
         return rt
     return rt
-build_selenium_browser('smush_cookies\nawedwa.hedi01@gmail.com_cookies.json','nawedwa.hedi01')
 
+d=[['smush_cookies/nawedwa.hedi01@gmail.com_cookies.json','nawedwa.hedi01'],['smush_cookies/nawedw.ahedi01@gmail.com_cookies.json','nawedwa.hedi02']]
+
+
+
+
+threads = []
+results = queue.Queue()
+
+# Create and start multiple threads
+num_threads = 5
+
+for i in d:
+    thread = threading.Thread(target=lambda i=i: results.put(build_selenium_browser(i[0],i[1])))
+    threads.append(thread)
+    thread.start()
+
+# Wait for all threads to finish
+for thread in threads:
+    thread.join()
+
+# Retrieve results from the queue
+while not results.empty():
+    result = results.get()
+    print(result)
+
+print("Account Threads Initlized!")

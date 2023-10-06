@@ -1,24 +1,30 @@
-from seleniumwire import webdriver
+import threading
+import queue
+import time
+# Define a function that returns a value
+def my_function(thread_id):
+    time.sleep(5)    
+    return f"Thread {thread_id} is running"
 
-# selenium-wire proxy settings
-# note: setting https:// for the 'http' key as well is not a mistake,
-# but a workaround to avoid `ValueError: 
-# Different settings for http and https proxy servers not supported`
-seleniumwire_options = {
-        'proxy': {
-            'https': 'https://myusername:password@myproxyserver.com:123456', 
-            'https': 'https://myusername:password@myproxyserver.com:123456',
-            'no_proxy': 'localhost,127.0.0.1' # excludes
-        }  
-    }
+# Create a list to hold thread objects and a queue to collect results
+threads = []
+results = queue.Queue()
 
-# other Chrome options
-chrome_options = webdriver.ChromeOptions()
-chrome_options.add_argument('--headless')
-chrome_options.add_argument('--no-sandbox')
-chrome_options.add_argument('--ignore-certificate-errors-spki-list')
-chrome_options.add_argument('--ignore-ssl-errors')
+# Create and start multiple threads
+num_threads = 5
 
-driver = webdriver.Chrome( 
-                            options=chrome_options,
-                            seleniumwire_options=seleniumwire_options)
+for i in range(num_threads):
+    thread = threading.Thread(target=lambda i=i: results.put(my_function(i)))
+    threads.append(thread)
+    thread.start()
+
+# Wait for all threads to finish
+for thread in threads:
+    thread.join()
+
+# Retrieve results from the queue
+while not results.empty():
+    result = results.get()
+    print(result)
+
+print("All threads have finished")
