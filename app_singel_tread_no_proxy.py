@@ -23,6 +23,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from pathlib import Path
+from seleniumwire import webdriver
 
 with open('config/config.json', 'r') as file:
     CONFIG_DATA = json.load(file)
