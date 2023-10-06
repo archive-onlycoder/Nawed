@@ -1,0 +1,10 @@
+{
+    "SHOW_Window":"NO",
+    "SHOW_Window_on_login":"NO",
+    "RealTime_Data_Update":"YES",
+    "Save_Data_After":0,
+    "Resolution-H":"720",
+    "Resolution-W":"1366",
+    "Screenshot-Delay":1
+
+}
